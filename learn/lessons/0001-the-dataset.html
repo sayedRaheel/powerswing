@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1: The Dataset</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#6b6a65;--card:#fff;--line:#e6e3dc;--accent:#c2410c;--ok:#15803d;--bad:#b91c1c;--soft:#fff4ec}
+@media (prefers-color-scheme:dark){:root{--bg:#141413;--fg:#ecebe6;--muted:#a3a29b;--card:#1d1d1b;--line:#33322e;--accent:#fb923c;--ok:#4ade80;--bad:#f87171;--soft:#2a1e16}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:17px/1.65 Georgia,"Iowan Old Style",serif}
+main{max-width:760px;margin:0 auto;padding:40px 16px 80px}
+h1,h2,h3{font-family:-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;line-height:1.25}
+h1{font-size:2rem;margin:.2em 0}
+h2{font-size:1.35rem;margin-top:2.2em;border-bottom:1px solid var(--line);padding-bottom:.3em}
+h3{font-size:1.05rem;margin-top:1.6em}
+.kicker{font:600 .8rem/1 -apple-system,Helvetica,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.lede{font-size:1.1rem;color:var(--muted)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin:18px 0}
+.simple{background:var(--soft);border-color:transparent}
+table{width:100%;border-collapse:collapse;font:14px/1.45 -apple-system,Helvetica,sans-serif;margin:12px 0}
+th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600}
+.tw{overflow-x:auto}
+code{font:14px Menlo,monospace;background:var(--line);padding:1px 5px;border-radius:4px}
+img{max-width:100%;border-radius:8px;border:1px solid var(--line);background:#fff}
+figcaption{font-size:.9rem;color:var(--muted);margin-top:6px}
+.flag{border-left:4px solid var(--accent);padding-left:14px}
+.q{margin:18px 0;padding:16px 18px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+.q p{margin:0 0 10px;font-weight:600;font-family:-apple-system,Helvetica,sans-serif;font-size:15px}
+.q button{display:block;width:100%;text-align:left;margin:6px 0;padding:9px 12px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg);font:15px -apple-system,Helvetica,sans-serif;cursor:pointer}
+.q button:hover{border-color:var(--accent)}
+.q button.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent)}
+.q button.wrong{border-color:var(--bad);background:color-mix(in srgb,var(--bad) 12%,transparent)}
+.fb{font:14px/1.5 -apple-system,Helvetica,sans-serif;color:var(--muted);margin-top:8px;display:none}
+.score{font:600 15px -apple-system,Helvetica,sans-serif}
+.ask{border:1px dashed var(--accent);border-radius:10px;padding:14px 18px;font-family:-apple-system,Helvetica,sans-serif;font-size:15px}
+sup a{color:var(--accent);text-decoration:none}
+ol.src{font-size:.9rem;color:var(--muted)}
+@media print{.q button{border:1px solid #999}.ask{display:none}}
+</style>
+</head>
+<body><main>
+<div class="kicker">Powerswing · Lesson 1 of 6</div>
+<h1>The dataset: what we actually measured</h1>
+<p class="lede">Everything we claim rests on one public dataset. If you can explain it in a minute, and know its limits, you can survive most investor and reviewer questions.</p>
+
+<h2>Simple view</h2>
+<div class="card simple">
+<p>A US national lab (NLR, formerly NREL) ran real AI jobs on its supercomputer and recorded <b>how much electricity each GPU used, 5 to 10 times per second</b>.<sup><a href="#s1">1</a></sup> Each computer ("node") has <b>4 NVIDIA H100 GPUs</b>. They ran two kinds of work:</p>
+<ul>
+<li><b>Training</b>: teaching a model (Llama2-70B fine-tuning, Stable Diffusion). Power goes up and down in a regular heartbeat.</li>
+<li><b>Inference</b>: answering requests with Llama3.1-70B. Power jumps when a batch of requests runs, then drops when it idles.</li>
+</ul>
+<p>We used about <b>340 node-hours</b> of these recordings. We cleaned them, put them all on the same clock (5 readings per second), and marked every moment the power suddenly fell. Those sudden falls are the "power swings" that worry the grid.</p>
+<p><b>One sentence for an investor:</b> "We trained on 340 hours of real H100 power recordings from a US national lab, covering both training and inference."</p>
+</div>
+
+<figure>
+<img src="../../reports/figures/eda_sample_traces.png" alt="Example power traces for each workload with detected drops marked">
+<figcaption>One example trace per workload. Each line is the total power of one 4-GPU node. Red marks are the big drops we detected.</figcaption>
+</figure>
+
+<h2>Deep view</h2>
+
+<h3>1. Who, where, how</h3>
+<p>The data comes from NLR's Kestrel HPC system, measured September 2025 to January 2026 with a tool called WattAMeter, and published under CC BY 4.0 (free to use if we cite it).<sup><a href="#s1">1</a></sup><sup><a href="#s2">2</a></sup> GPU power comes from NVIDIA's own counter, NVML.<sup><a href="#s3">3</a></sup> Training jobs are standard MLCommons benchmarks;<sup><a href="#s4">4</a></sup> inference uses vLLM's benchmark scripts.<sup><a href="#s5">5</a></sup></p>
+
+<h3>2. The five workloads</h3>
+<div class="tw"><table>
+<tr><th>Workload</th><th>What it is</th><th>Node-hours</th><th>Independent units</th><th>Rate</th></tr>
+<tr><td>Llama2-70B LoRA training</td><td>Fine-tuning on 2 to 16 nodes</td><td>111</td><td>21 jobs</td><td>5 Hz</td></tr>
+<tr><td>Stable Diffusion training</td><td>Image model training on 1 to 16 nodes</td><td>175</td><td>25 jobs</td><td>5 Hz</td></tr>
+<tr><td>Inference, offline batch</td><td>1,200 batch runs back to back</td><td>14</td><td>1 session</td><td>10 Hz</td></tr>
+<tr><td>Inference, online finite</td><td>1,026 runs of 1,000 prompts</td><td>20</td><td>1 session</td><td>10 Hz</td></tr>
+<tr><td>Inference, online fixed rate</td><td>200 runs of 180 s each</td><td>18</td><td>1 session</td><td>10 Hz</td></tr>
+</table></div>
+<p>Total: 470 node-traces, about 6.1 million readings, about 338 node-hours.</p>
+
+<h3>3. What the raw files look like</h3>
+<p>Each GPU log is a text file: a timestamp, then power for <code>gpu-0</code> to <code>gpu-3</code> in <b>milliwatts</b>, then temperatures. There are also CPU logs (RAPL). We used <b>GPU power only</b>, because the authors' ready-made training files add CPU power in, which would blur the GPU signal. Full details are in <code>data/README_data.md</code>.</p>
+
+<h3>4. What we did to clean it</h3>
+<ol>
+<li>Readings above 800 W or below 0 W per GPU are sensor glitches (the authors' own rule), so we drop them.</li>
+<li>Average everything onto one grid of <b>0.2 s</b> (5 Hz). Inference was 10 Hz, so we average pairs.</li>
+<li>Fill short gaps by repeating the last reading (never peeking at the next one, so no future info leaks in). In practice no gap was longer than 1 s.</li>
+<li>Line up all nodes of one training job on the same clock.</li>
+<li>Cut each long inference session into 1-hour blocks so it can be split like separate traces.</li>
+</ol>
+
+<h3>5. How we split train / validation / test</h3>
+<p>Training: <b>whole jobs</b> go to one side, never half a job (otherwise the model would see the test job's own rhythm). About 60/20/20, balanced by model and node count. Inference: <b>split in time</b>, first 60% of hours for training, next 20% validation, last 20% test.</p>
+<div class="card flag">
+<p><b>The number a reviewer will ask for:</b> the test set is only <b>9 training jobs</b> (4 Llama, 5 Stable Diffusion) plus the last 20% of <b>3 inference sessions</b>. That is about 12 truly independent units. Millions of readings, but few independent experiments. Error bars must be computed per job, not per reading.</p>
+</div>
+
+<h3>6. Surprises in the data</h3>
+<ul>
+<li><b>Nodes move in lockstep.</b> In a 16-node job every node drops at the same instant (98% of drops line up within 0.4 s). So a big job hits the grid as one giant swing. This is why we used at most 4 nodes per job for training models: the rest are near copies.</li>
+<li><b>Llama training has a 12 s heartbeat</b> between about 2.75 kW and 2.15 kW per node (a 22% swing). That is below our 30% "big drop" bar, but still breaks a 10% per second grid limit.</li>
+<li><b>Inference drops are mostly the benchmark pausing</b> between scripted runs. They are real swings, but their timing comes from how the test was scripted, not from real users.</li>
+</ul>
+<figure>
+<img src="../../reports/figures/eda_single_vs_multinode.png" alt="One node versus the whole multi-node job">
+<figcaption>One node versus the whole job: the job total is basically one node's shape times the number of nodes.</figcaption>
+</figure>
+
+<h3>7. What is NOT in the dataset</h3>
+<p>Say this honestly when asked: no facility meter or PDU power, no checkpoint or step markers, no power-cap settings, no crash events, no other GPU types, no real production traffic. The folder <code>03_whole-facility_profiles</code> is <b>simulated</b>, not measured, so we did not use it. And 5 Hz cannot see swings faster than about 0.4 s; Microsoft reports training swings at around 20 Hz,<sup><a href="#s6">6</a></sup> so true ramps are probably steeper than we measured.</p>
+
+<h2>Check yourself</h2>
+<div id="quiz"></div>
+<p class="score" id="score"></p>
+
+<div class="ask"><b>Stuck or curious?</b> Ask Claude in the terminal, for example: "why does lockstep make the grid problem worse?" or "what would 20 Hz data change?". Next lesson: what exactly counts as a "big drop", and how we turned it into labels.</div>
+
+<h2>Sources</h2>
+<ol class="src">
+<li id="s1"><a href="https://arxiv.org/abs/2604.07345">Vercellino et al., arXiv 2604.07345 (2026)</a></li>
+<li id="s2"><a href="https://data.nlr.gov/submissions/312">NLR Data Catalog, submission 312</a></li>
+<li id="s3"><a href="https://docs.nvidia.com/deploy/nvml-api/">NVIDIA NVML API reference</a></li>
+<li id="s4"><a href="https://mlcommons.org/benchmarks/training/">MLCommons MLPerf Training</a></li>
+<li id="s5"><a href="https://docs.vllm.ai/">vLLM documentation</a></li>
+<li id="s6"><a href="https://arxiv.org/abs/2508.14318">Power Stabilization for AI Training Datacenters, arXiv 2508.14318</a></li>
+</ol>
+</main>
+<script>
+const Q=[
+{q:"An investor asks: is this real data or simulated?",o:["Simulated by NLR's facility model","Real GPU power readings from H100 nodes at a US national lab","Synthetic data we generated"],a:1,e:"Real NVML readings from NLR's Kestrel system. Only the 03_whole-facility folder is simulated, and we did not use it."},
+{q:"Why did we use GPU power only, not the authors' ready-made training files?",o:["The ready-made files add CPU power in, which blurs the GPU signal","GPU files were smaller","CPU power was missing"],a:0,e:"The aggregated training files sum GPU + CPU. We rebuilt clean GPU-only traces from the raw logs."},
+{q:"A reviewer asks how many independent test units you have. Best honest answer?",o:["About 1.2 million readings","About 12: 9 training jobs plus the tail of 3 inference sessions","470 traces"],a:1,e:"Readings inside one job are not independent. The honest unit is the job (or session). That is why per-job error bars matter."},
+{q:"Why can a 16-node job be one big problem for the grid?",o:["Its nodes swing at the same instant, so the swings add up","It uses CPUs too","It runs at 10 Hz"],a:0,e:"98% of drops line up across nodes within 0.4 s, so 16 nodes = one swing 16 times bigger."},
+{q:"What can 5 Hz data NOT show us?",o:["Drops that last a few seconds","Swings faster than about 0.4 s","The 12 s Llama heartbeat"],a:1,e:"At 5 readings per second you cannot see anything faster than about 0.4 s. Real ramps are likely steeper than we measured."}
+];
+let right=0,done=0;const box=document.getElementById('quiz');
+Q.forEach((x,i)=>{const d=document.createElement('div');d.className='q';d.innerHTML='<p>'+(i+1)+'. '+x.q+'</p>';const fb=document.createElement('div');fb.className='fb';
+x.o.forEach((t,j)=>{const b=document.createElement('button');b.textContent=t;b.onclick=()=>{if(d.dataset.done)return;d.dataset.done=1;done++;
+if(j===x.a){b.classList.add('right');right++}else{b.classList.add('wrong');d.querySelectorAll('button')[x.a].classList.add('right')}
+fb.textContent=x.e;fb.style.display='block';if(done===Q.length)document.getElementById('score').textContent='Score: '+right+' / '+Q.length+(right===Q.length?'. You can explain the dataset.':'. Re-read the deep view for the ones you missed.')};d.appendChild(b)});
+d.appendChild(fb);box.appendChild(d)});
+</script>
+</body></html>

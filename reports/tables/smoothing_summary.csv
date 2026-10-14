@@ -1,0 +1,7 @@
+strategy,down_violations_per_node_hour,all_violations_per_node_hour,median_max_down_ramp_pct_peak_per_s,extra_energy_pct,deferred_compute_pct,down_violation_cut_pct,all_violation_cut_pct
+raw,184.257,351.75,70.859,0.0,0.0,0.0,0.0
+always_burn,171.84,343.28,19.708,6.783,0.0,6.739,2.408
+predictive,29.823,210.021,58.71,2.576,0.0,83.815,40.292
+predictive_preramp,29.556,280.287,58.71,1.549,2.951,83.959,20.316
+reactive,154.767,312.837,68.627,0.574,0.0,16.005,11.063
+always_on_limiter,0.0,171.773,9.0,2.935,0.0,100.0,51.166

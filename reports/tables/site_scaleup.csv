@@ -1,0 +1,13 @@
+case,strategy,avg_site_load_mw,extra_energy_pct,extra_mwh_per_year,extra_cost_usd_per_year,down_violations_per_hour,max_down_ramp_mw_per_s
+synchronized,raw,79.747,0.0,0.0,0.0,184.257,
+synchronized,always_burn,79.747,6.783,47382.551,3790604.072,171.84,
+synchronized,predictive,79.747,2.576,17995.546,1439643.716,29.823,
+synchronized,predictive_preramp,79.747,1.549,10822.864,865829.148,29.556,
+synchronized,reactive,79.747,0.574,4011.56,320924.807,154.767,
+synchronized,always_on_limiter,79.747,2.935,20506.048,1640483.804,0.0,
+random_offsets,raw,77.828,0.0,0.0,0.0,0.0,2.077
+random_offsets,always_burn,77.828,7.498,51122.607,4089808.557,0.0,1.014
+random_offsets,predictive,77.828,2.345,15990.378,1279230.261,0.0,1.201
+random_offsets,predictive_preramp,77.828,1.263,8610.273,688821.88,0.0,1.233
+random_offsets,reactive,77.828,0.541,3688.313,295065.061,0.0,1.908
+random_offsets,always_on_limiter,77.828,2.718,18533.671,1482693.689,0.0,1.1

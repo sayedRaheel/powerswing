@@ -1,0 +1,6 @@
+model,ms_per_prediction
+LightGBM (feature computation + 3 horizons + drop classifier),10.34
+rhythm / persistence / moving-avg baselines (feature computation),6.72
+"tiny TCN (46,148 params, all 4 outputs)",1.18
+"chronos-bolt-small (48M params, zero-shot)",19.35
+"timesfm-2.5 (200M params, zero-shot)",190.74

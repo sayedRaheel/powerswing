@@ -1,0 +1,15 @@
+.venv/
+data/raw/
+data/processed/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.session-memory/
+.DS_Store
+.claude/
+run_all.log
+paper/*.aux
+paper/*.log
+# never commit dataset files (Supercloud/Elsayed are CC BY-NC-ND)
+data/*
+!data/README_data.md

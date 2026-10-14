@@ -1,0 +1,13 @@
+{
+ "ramp_limit_frac_per_s": 0.1,
+ "floor_frac": 0.8,
+ "peak_window_s": 60.0,
+ "actuator_latency_s": 1.0,
+ "arm_hold_s": 6.0,
+ "safety": 0.9,
+ "forecast_trigger_frac": 0.15,
+ "site_mw": 100.0,
+ "price_per_mwh": 80.0,
+ "site_instances": 400,
+ "site_hours": 2.0
+}

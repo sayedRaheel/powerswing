@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Powerswing Project Map</title>
+<style>
+:root{--bg:#fbfaf7;--fg:#1d1d1b;--muted:#6b6a65;--card:#fff;--line:#e6e3dc;--accent:#c2410c;--soft:#fff4ec}
+@media (prefers-color-scheme:dark){:root{--bg:#141413;--fg:#ecebe6;--muted:#a3a29b;--card:#1d1d1b;--line:#33322e;--accent:#fb923c;--soft:#2a1e16}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif}
+main{max-width:900px;margin:0 auto;padding:32px 16px 60px}
+h1{font-size:1.7rem;margin:0 0 4px}
+.sub{color:var(--muted);margin:0 0 20px}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin:14px 0;break-inside:avoid}
+h2{font-size:1.05rem;margin:0 0 8px;display:flex;gap:10px;align-items:baseline}
+h2 .n{color:var(--accent);font-weight:700}
+.grid{display:grid;grid-template-columns:1fr 1.6fr;gap:16px}
+@media (max-width:640px){.grid{grid-template-columns:1fr}}
+.simple{background:var(--soft);border-radius:8px;padding:10px 12px}
+.lbl{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+ul{margin:4px 0;padding-left:18px}
+li{margin:2px 0}
+code{font:12.5px Menlo,monospace;background:var(--line);padding:1px 4px;border-radius:3px}
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+td,th{padding:5px 6px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--muted)}
+.ok{color:#15803d;font-weight:600}.warn{color:var(--accent);font-weight:600}
+@media print{body{font-size:12px}section{border-color:#ccc}}
+</style>
+</head>
+<body><main>
+<h1>Powerswing project map</h1>
+<p class="sub">The whole POC on one page. Left: the simple view. Right: the deep view with the file where it lives. Numbers are from the final run (test set).</p>
+
+<section><h2><span class="n">0</span>The problem</h2><div class="grid">
+<div class="simple"><div class="lbl">Simple</div>AI training makes power jump up and down every few seconds. At 100 MW that shakes the grid. Today sites waste power ("always-burn") to hide the dips. We asked: can we predict dips and only smooth when needed?</div>
+<div><div class="lbl">Deep</div><ul><li>Grid ramp limit assumed: 10% of rated power per second (configurable).</li><li>Fix families (Microsoft/OpenAI/NVIDIA, arXiv 2508.14318): software fill, GPU power floor, storage.</li><li>Our angle: use a forecast to arm the fix only before a drop.</li></ul></div>
+</div></section>
+
+<section><h2><span class="n">1</span>Data</h2><div class="grid">
+<div class="simple"><div class="lbl">Simple</div>340 hours of real H100 power readings from a US national lab, training and inference. See Lesson 1.</div>
+<div><div class="lbl">Deep</div><ul><li>NLR dataset, CC BY 4.0, 5 Hz training / 10 Hz inference, resampled to 5 Hz, GPU only.</li><li>Split by whole job (training) and by time (inference). Test = 9 jobs + 3 session tails.</li><li><code>src/load.py</code>, <code>data/README_data.md</code></li></ul></div>
+</div></section>
+
+<section><h2><span class="n">2</span>What is a "big drop"</h2><div class="grid">
+<div class="simple"><div class="lbl">Simple</div>Power falls by more than 30% of its recent peak within 1 second. We marked every one, then asked "will one start in the next 5 s?"</div>
+<div><div class="lbl">Deep</div><ul><li>Fall &gt; 0.3 x max(last 10 s) within 1 s, peak at least 1 kW, 5 s refractory.</li><li>Label y=1 if a drop onset falls in (t, t+5 s].</li><li>Rates per node-hour: SD 118, offline inference 113, finite 60, Llama 32, fixed-rate 24.</li><li><code>src/events.py</code></li></ul></div>
+</div></section>
+
+<section><h2><span class="n">3</span>Two tasks</h2><div class="grid">
+<div class="simple"><div class="lbl">Simple</div>A: guess the power 1, 5 and 10 seconds from now. B: raise an alarm before a big drop.</div>
+<div><div class="lbl">Deep</div><ul><li>Task A metric: MAE in watts per node (also RMSE, MAPE).</li><li>Task B metrics: recall with at least 1 s warning, mean lead time, false alarms per node-hour, AP, F1.</li><li>Threshold picked on validation only (highest threshold with validation recall at least 0.85).</li></ul></div>
+</div></section>
+
+<section><h2><span class="n">4</span>Baselines (the simple rules to beat)</h2><div class="grid">
+<div class="simple"><div class="lbl">Simple</div>Persistence: "same as now". Moving average. Rhythm: "the pattern repeats, so copy the last cycle".</div>
+<div><div class="lbl">Deep</div><ul><li>Rhythm uses a 120 s sliding autocorrelation to find the period (2 to 40 s), falls back to persistence when no rhythm.</li><li>Rhythm is the strong baseline because training is periodic.</li><li><code>src/baselines.py</code></li></ul></div>
+</div></section>
+
+<section><h2><span class="n">5</span>Models</h2><div class="grid">
+<div class="simple"><div class="lbl">Simple</div>LightGBM (a fast tree model on hand-made signals), a tiny neural net (TCN), and two big pre-trained forecasters used with no training (Chronos, TimesFM).</div>
+<div><div class="lbl">Deep</div><ul><li>56 causal features: lags, differences, rolling stats 1 to 60 s, time since last drop, rhythm period and phase, rhythm forecasts.</li><li>LightGBM: L1 regression on power change per horizon + drop classifier. <code>src/features.py</code>, <code>src/models.py</code></li><li>TCN: 46k params, 51 s window, joint forecast + alarm, runs in a subprocess (macOS OpenMP clash). <code>src/nets.py</code></li><li>Chronos-Bolt-Small, TimesFM 2.5: zero-shot on 2,000 sampled test points.</li></ul></div>
+</div></section>
+
+<section><h2><span class="n">6</span>Prediction results</h2>
+<table>
+<tr><th>Model</th><th>MAE at 5 s (W/node)</th><th>Latency (CPU)</th><th>Drop recall / false alarms per hour</th></tr>
+<tr><td>Persistence</td><td>288</td><td>&lt;7 ms</td><td></td></tr>
+<tr><td>Rhythm</td><td>115</td><td>7 ms</td><td>83% / 120</td></tr>
+<tr><td><b>LightGBM</b></td><td><b>70</b> (39% better than rhythm) <span class="ok">criterion met</span></td><td>10 ms</td><td><b>82% / 2.3</b>, 4.9 s lead <span class="ok">met overall</span></td></tr>
+<tr><td>Tiny TCN</td><td>75</td><td>1.2 ms</td><td>82% / 3.5</td></tr>
+<tr><td>Chronos / TimesFM (subset)</td><td>199 / 144 (LightGBM 108 on same subset)</td><td>19 / 191 ms</td><td>not used</td></tr>
+</table>
+<p><span class="warn">Caveat:</span> recall per workload is SD 97%, finite 70%, offline 42%, Llama 24%, fixed-rate 0% (macro 47%). SD is 76% of test drops. On unseen workload types LightGBM loses to rhythm on 4 of 5.</p>
+</section>
+
+<section><h2><span class="n">7</span>Smoothing simulation</h2><div class="grid">
+<div class="simple"><div class="lbl">Simple</div>We replayed test traces and tried strategies. Always-burn wastes energy and still fails. Predictive switches smoothing on only before drops: fixes most violations for much less energy.</div>
+<div><div class="lbl">Deep</div><ul><li>Strategies only add power (fill). Predictive arms a ramp-down limiter on alarm or forecast fall &gt; 15% of peak; actuator latency 1 s, hold 6 s.</li><li>Node level: predictive removes <b>84%</b> of violations for <b>2.6%</b> energy; always-burn 7% for 6.8%; reactive 16%; always-on limiter 100% for 2.9%. <span class="ok">criterion met</span></li><li>100 MW synchronized site: always-burn $3.8M/yr, predictive $1.4M/yr at $80/MWh.</li><li>Random-offset site: worst fall 2.1 MW/s, never violates. <code>src/simulate.py</code></li></ul></div>
+</div></section>
+
+<section><h2><span class="n">8</span>Honest limits</h2><ul>
+<li><b>Smoothing does not need the ML:</b> arming the same limiter with the simple rhythm alarm removes 83.3% of violations for 2.4% energy, vs ML 83.8% for 2.6% (found by Codex review, verified). The ML win is in forecast accuracy, not in the smoothing result.</li>
+<li>Always-on limiter (no ML) matches predictive if the actuator is instant. Prediction pays off only with about 1 s or more actuator delay, or for pre-ramping.</li>
+<li>About 12 independent test units; no confidence intervals yet.</li>
+<li>5 Hz misses sub-second swings; inference drops are benchmark pauses; actuator is simulated; one site.</li>
+<li>Closest prior work: EasyRider (2604.15522, reactive hardware, same 10%/s target), 2609.22542 (same NLR data, battery smoothing), 2606.04869 (predictive control with perfect preview).</li>
+</ul></section>
+
+<section><h2><span class="n">9</span>Where things are</h2><ul>
+<li>Run everything: <code>python -m src.run_all</code> (36 min) or <code>--reuse-nets</code> (14 min)</li>
+<li>Results for non-technical readers: <code>reports/results.md</code>; slide: <code>reports/figures/summary_slide.png</code></li>
+<li>Notebooks: <code>notebooks/01_explore</code>, <code>02_models</code>, <code>03_simulation</code></li>
+</ul></section>
+</main></body></html>

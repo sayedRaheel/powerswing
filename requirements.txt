@@ -1,0 +1,16 @@
+numpy>=2.0
+pandas>=2.2
+pyarrow>=17
+scipy>=1.13
+scikit-learn>=1.5
+lightgbm>=4.5
+torch>=2.4
+matplotlib>=3.9
+jupyter
+nbformat
+nbconvert
+ipykernel
+tqdm
+chronos-forecasting>=1.5
+timesfm[torch]>=2.5
+numba
