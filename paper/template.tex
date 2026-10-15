@@ -241,8 +241,8 @@ assumed fraction of rated power.
 \emph{Workloads.} NLR and Elsayed are scripted benchmarks; NLR inference falls are dominated by gaps
 between benchmark runs, and each NLR inference workload is a single session. Supercloud adds real jobs
 on 2018-era V100 nodes. \emph{Scale.} Results are per node; synchronized multi-node jobs scale the same
-swing, while desynchronized jobs partly cancel. \emph{Licences.} Elsayed and Supercloud are CC BY-NC-ND
-and were used for research only.
+swing, while desynchronized jobs partly cancel. \emph{Licences.} Supercloud is CC BY-NC-ND and the Elsayed
+archive README states CC BY-NC-ND; both were used for research only and are not redistributed.
 
 \section{Conclusion}
 For fill-type smoothing of AI power swings, a forecaster should be trained on the controller's event, a
@@ -253,15 +253,15 @@ V100 jobs, provided the site is represented in training. Closing the gap to the 
 new sites are the natural next steps.
 
 \begin{thebibliography}{9}
-\bibitem{msft_stab} [authors to verify], ``Power stabilization for AI training datacenters,'' arXiv:2508.14318, 2025.
-\bibitem{easyrider} ``EasyRider: Mitigating power transients in datacenter-scale training workloads,'' arXiv:2604.15522, 2026.
-\bibitem{activefilter} ``Active filter design for buffering datacenter-scale power fluctuations from training AI,'' arXiv:2609.13490, 2026.
-\bibitem{hessdpc} ``Source side mitigation of AI datacenter power fluctuations with a hybrid energy storage system and residual differentiable predictive control,'' arXiv:2606.04869, 2026.
-\bibitem{lyu} [authors to verify], battery smoothing of AI data center power with delay compensation, arXiv:2609.22542, 2026.
-\bibitem{mughees} [authors to verify], ``Short-term load forecasting for AI-data center,'' IEEE PES GM, 2025, arXiv:2503.07756.
-\bibitem{nlr} R.~Vercellino \emph{et al.}, ``Measurement of generative AI workload power profiles for whole-facility data center infrastructure planning,'' arXiv:2604.07345, 2026.
-\bibitem{elsayed} A.~Elsayed \emph{et al.}, ``Characterization of high-resolution AI data center training workloads on single and multiple GPU nodes,'' \emph{Scientific Data}, 2026, doi:10.1038/s41597-026-07496-6.
-\bibitem{supercloud} S.~Samsi \emph{et al.}, ``The MIT Supercloud dataset,'' in \emph{Proc. IEEE HPEC}, 2021, arXiv:2108.02037.
+\bibitem{msft_stab} E.~Choukse, B.~Warrier, S.~Heath, et al., ``Power stabilization for AI training datacenters,'' arXiv:2508.14318, 2025.
+\bibitem{easyrider} D.~Jensen, G.~Wilkins, O.~Nnorom~Jr., H.~Budd, R.~Rajagopal, J.~Rivas-Davila, and P.~Levis, ``EasyRider: Mitigating power transients in datacenter-scale training workloads,'' arXiv:2604.15522, 2026.
+\bibitem{activefilter} D.~Jensen, G.~Wilkins, O.~Nnorom~Jr., H.~Budd, P.~Levis, and J.~Rivas, ``Active filter design for buffering datacenter-scale power fluctuations from training AI,'' arXiv:2609.13490, 2026.
+\bibitem{hessdpc} H.~You, C.~Lou, and J.~Yang, ``Source side mitigation of AI datacenter power fluctuations with a hybrid energy storage system and residual differentiable predictive control,'' arXiv:2606.04869, 2026.
+\bibitem{lyu} X.~Lyu, W.~Du, S.~M.~Mohiuddin, and B.~A.~Ross, ``Communication delay robust control of BESS for AI training load smoothing,'' arXiv:2609.22542, 2026.
+\bibitem{mughees} M.~Mughees, Y.~Li, Y.~Chen, and Y.~R.~Li, ``Short-term load forecasting for AI-data center,'' arXiv:2503.07756, 2025 (accepted to IEEE PES General Meeting 2025).
+\bibitem{nlr} R.~Vercellino, J.~Willard, G.~Campos, W.~da~Silva~Pereira, O.~Hull, M.~Selensky, and J.~Mueller, ``Measurement of generative AI workload power profiles for whole-facility data center infrastructure planning,'' arXiv:2604.07345, 2026. Data: ``Dataset of Generative AI Workload Power Profiles,'' National Laboratory of the Rockies, doi:10.7799/3025227.
+\bibitem{elsayed} A.~A.~E.~Elsayed, A.~A.~Al-Obaidi, and H.~E.~Z.~Farag, ``Characterization of high-resolution AI data center training workloads on single and multiple GPU nodes,'' \emph{Scientific Data}, vol.~13, art.~1268, 2026, doi:10.1038/s41597-026-07496-6. Data: figshare, doi:10.6084/m9.figshare.31654879.
+\bibitem{supercloud} S.~Samsi, M.~L.~Weiss, D.~Bestor, et al., ``The MIT Supercloud dataset,'' in \emph{Proc. IEEE High Performance Extreme Computing Conf. (HPEC)}, 2021, pp.~1--8, doi:10.1109/HPEC49654.2021.9622850.
 \end{thebibliography}
 
 \end{document}

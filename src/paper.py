@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 from pathlib import Path
 
 import matplotlib
@@ -102,6 +103,11 @@ def numbers() -> dict[str, str]:
     pw = pw[(pw["config"] == "pooled") & (pw["workload"] != "all")]
     n["sc_classes_sig"] = int(((pw["test_dataset"] == "supercloud") & (pw["ap_diff_lo"] > 0)).sum())
     n["sc_classes"] = int((pw["test_dataset"] == "supercloud").sum())
+    # validation-chosen operating points per dataset (1 decision per second, src/crossdata.py)
+    rd = pd.read_csv(TABLES / "crossdata_readiness_harmonized.csv")
+    for r in rd.itertuples():
+        k = f"rd_{r.config}_{r.test_dataset}_{r.source}_{int(r.target)}"
+        n[f"{k}_cut"], n[f"{k}_armed"] = r.test_cut_pct, r.test_armed_pct
 
     st = dataset_stats()
     for d in st.index:
@@ -113,7 +119,7 @@ def numbers() -> dict[str, str]:
             out[k] = v
         elif k.endswith(("_units", "_test_units", "classes_sig", "classes")) or k.endswith("node_h"):
             out[k] = f"{v:,.0f}"
-        elif k.startswith(("t8", "t9", "arm", "an")) or k.endswith(("_cut", "_armed", "_ovh", "max_cut", "oracle_armed", "viol_h")) \
+        elif k.startswith(("t8", "t9", "arm", "an", "rd_")) or k.endswith(("_cut", "_armed", "_ovh", "max_cut", "oracle_armed", "viol_h")) \
                 or k in ("burn_cut", "burn_ovh") or re.match(r"t\d+_sb\d+_(diff|lo|hi)", k):
             out[k] = f"{v:.1f}"
         else:
@@ -214,13 +220,23 @@ def run() -> None:
     fig_readiness()
     fig_forest()
     fig_example()
-    tpl = (OUT / "template.tex").read_text()
+    fill(OUT / "template.tex", OUT / "main.tex", nums)
+    # arXiv version: self-contained folder (tex + figures) ready to tar and upload
+    arx = OUT / "arxiv"
+    if (arx / "template.tex").exists():
+        for f in ("fig_readiness.pdf", "fig_forest.pdf", "fig_example.pdf"):
+            shutil.copy(OUT / f, arx / f)
+        fill(arx / "template.tex", arx / "main.tex", nums)
+
+
+def fill(tpl_path: Path, out_path: Path, nums: dict[str, str]) -> None:
+    """Replace every <<name>> in the template with its number; fail loudly on any missing name."""
+    tpl = tpl_path.read_text()
     missing = sorted(set(re.findall(r"<<([a-zA-Z0-9_]+)>>", tpl)) - set(nums))
     if missing:
-        raise KeyError(f"template placeholders without numbers: {missing}")
-    tex = re.sub(r"<<([a-zA-Z0-9_]+)>>", lambda m: nums[m.group(1)], tpl)
-    (OUT / "main.tex").write_text(tex)
-    print(f"paper: wrote {OUT / 'main.tex'} with {len(nums)} numbers")
+        raise KeyError(f"{tpl_path.name}: placeholders without numbers: {missing}")
+    out_path.write_text(re.sub(r"<<([a-zA-Z0-9_]+)>>", lambda m: nums[m.group(1)], tpl))
+    print(f"paper: wrote {out_path} with {len(nums)} numbers")
 
 
 if __name__ == "__main__":

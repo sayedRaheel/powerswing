@@ -13,3 +13,5 @@ paper/*.log
 # never commit dataset files (Supercloud/Elsayed are CC BY-NC-ND)
 data/*
 !data/README_data.md
+paper/arxiv/*.log
+paper/arxiv/*.aux
