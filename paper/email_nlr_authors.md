@@ -22,6 +22,6 @@ public, a pointer to it would also be very helpful.
 Thank you again for making the data available.
 
 Best regards,
-[Your name]
-[Affiliation / company]
-[Email]
+Sayed Raheel
+Independent Researcher; Yeshiva University alumnus
+shussai1@mail.yu.edu
