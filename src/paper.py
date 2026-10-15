@@ -33,7 +33,8 @@ def dataset_stats() -> pd.DataFrame:
     rows = []
     m = pd.read_csv(PROC_DIR / "traces_meta.csv")
     m = m[m["use_for_model"]]
-    units = np.where(m["phase"] == "training", m["job_id"].astype(str), m["trace_id"])
+    # independent units: training jobs, and each inference benchmark as one continuous session
+    units = np.where(m["phase"] == "training", "job_" + m["job_id"].astype(str), "session_" + m["workload"])
     rows.append({"dataset": "nlr", "node_h": m["duration_s"].sum() / 3600, "units": len(set(units)),
                  "test_units": len(set(units[m["split"] == "test"])), "traces": len(m)})
     for name in ("elsayed", "supercloud"):
@@ -50,6 +51,11 @@ def numbers() -> dict[str, str]:
     n["nlr_ap_rh"] = al["L1_test_ap_rhythm"]
     n["nlr_ap_old"] = al["test_ap_old_drop_clf"]
     n["nlr_ap_rhalarm"] = al["test_ap_rhythm_alarm"]
+    # matched label ablation (src/ablation.py): big-drop label through the exact aligned pipeline
+    ab = json.load(open(PROC_DIR / "ablation_info.json"))
+    for k in ("matched_aligned_ap", "matched_drop_ap", "matched_diff", "matched_diff_lo", "matched_diff_hi",
+              "matched_drop_ap_on_drop_label", "matched_aligned_ap_on_drop_label"):
+        n[f"abl_{k}"] = ab[k]
     for w in ("train_llama2_70b_lora", "train_stable_diffusion", "inference_offline", "inference_online_finite", "inference_online_rate"):
         n[f"wl_{w}_ml"] = al.get(f"test_ap_{w}", np.nan)
         n[f"wl_{w}_rh"] = al.get(f"test_ap_rhythm_{w}", np.nan)

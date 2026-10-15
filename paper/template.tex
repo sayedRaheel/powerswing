@@ -89,18 +89,18 @@ validation units.)
 \textbf{Sensor harmonization.} NVML documents that on recent architectures the default power reading is
 averaged over about 1~s, while older GPUs such as the V100 report instantaneous power. The NLR
 documentation does not state which reading was logged. Raw V100 traces flicker: without harmonization,
-89\% of Supercloud seconds are labelled ``violation imminent''. We apply a 1~s trailing mean to
+91\% of Supercloud test seconds are labelled ``violation imminent''. We apply a 1~s trailing mean to
 Supercloud so that all three datasets are compared at similar effective bandwidth.
 
 \section{Problem and methods}
 \subsection{Ramp limit, limiter and readiness}
 A violation starts when the node's 1~s down-ramp exceeds 10\% of rated power. A fill-type limiter adds
-power only when the load falls faster than the limit allows, then tapers at the allowed rate. A trigger
+power only when the load falls faster than the limit allows, then tapers at 90\% of the allowed rate. A trigger
 issued at row $t$ acts one sample later (each row averages $[t, t{+}0.2\,\mathrm{s})$), engages the
 limiter after an actuator latency $L$ (1~s unless stated) and arms it for 6~s; the limiter keeps
 filling until it meets the load. We count as \emph{engaged} every sample where the limiter is armed or
 still filling, and report violations removed against engaged time, plus energy overhead with a standby
-draw of 0--5\% of rated power while engaged. References: always-on, always-burn (an 80\% power floor,
+draw of 0--5\% of rated power while engaged. References: always-on, always-burn (a floor at 80\% of the trailing 60~s peak,
 which removes only <<burn_cut>>\% of violations for <<burn_ovh>>\% extra energy) and an oracle that
 arms just in time for every violation, including those induced by the limiter itself.
 
@@ -240,7 +240,7 @@ latency, hold time and standby draw; storage capacity, state of charge, efficien
 assumed fraction of rated power.
 \emph{Workloads.} NLR and Elsayed are scripted benchmarks; NLR inference falls are dominated by gaps
 between benchmark runs, and each NLR inference workload is a single session. Supercloud adds real jobs
-on 2018-era V100 nodes. \emph{Scale.} Results are per node; synchronized multi-node jobs scale the same
+on older V100 nodes. \emph{Scale.} Results are per node; synchronized multi-node jobs scale the same
 swing, while desynchronized jobs partly cancel. \emph{Licences.} Supercloud is CC BY-NC-ND and the Elsayed
 archive README states CC BY-NC-ND; both were used for research only and are not redistributed.
 

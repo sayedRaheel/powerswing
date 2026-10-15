@@ -78,3 +78,10 @@ Plan:
 - [ ] Codex round 3 (final) running -> reports/review/codex_final_review_r3_raw.md. After it: escalate to Raheel per lane (max 3 rounds).
 - [x] Codex r3 (reports/review/codex_final_review_r3_2026-10-13.md): fixes 1-4 PASS; 268/268 numbers reconcile. CRITICAL: Table II / abstract 48.4 vs 99.2 is test-frontier (best threshold read off test) -> abstract now leads with validation-chosen op point (86.8% removal @45.6% engaged vs rhythm 99.2%); Table II labelled retrospective. Wording fixes applied: AP-only cross-site claim, node cap disclosed, NLR inference val halves dependence disclosed, CIs conditional on single fit, stride disclosed, ~200 thresholds, 7/7 exploratory, forest "unseen site, shape-only", aligned.py docstring. Paper now 4 pages.
 - [ ] ESCALATED to Raheel (3 rounds done). Open (need code+rerun, user decision): retrain-based/nested bootstrap or repeated splits; one-node-per-job sensitivity; NLR inference val halves by session; physical actuator/storage model; legacy simulate.py convention. Pred: PES GM reject/major rev; CCAI workshop borderline -> weak accept after fixes.
+
+## arXiv paper (2026-10-15)
+- [x] paper/arxiv/template.tex -> main.tex (11 pp, article class, pdflatex-safe ASCII), filled by src/paper.py from numbers.json; tarball paper/arxiv_submission.tar.gz
+- [x] References verified on live arXiv/DOI pages (subagent); NVML wording fixed (Ampere except GA100+ averaged; GA100/V100 instantaneous); licences: NLR = NLR dataset licence (not CC), Elsayed figshare CC BY vs zip README BY-NC-ND, Supercloud CC BY-NC-ND
+- [x] NEW src/ablation.py matched-pipeline ablation: aligned AP 0.958 vs big-drop label 0.583, diff 0.37 [0.28, 0.49], 12 clusters; drop model AP 0.93 on own label (not a strawman)
+- [x] Reviews: fact-check subagent x2, Codex r1 (NOT READY) -> r2 (READY AFTER FIXES) -> r3 (READY AFTER FIXES, 2 wording nits applied), Kimi r1 (READY AFTER FIXES). All in reports/review/arxiv_*.
+- [ ] USER: arXiv account/endorsement, affiliation, confirm AI-use statement, submit tarball (cs.LG primary, eess.SY cross-list suggested)

@@ -12,6 +12,7 @@
 \usepackage{url}
 \usepackage[hidelinks]{hyperref}
 \usepackage{caption}
+\usepackage[section,above]{placeins}
 \captionsetup{font=small}
 
 \title{Predict the Breach, Not the Drop:\\Control-Aligned Learning for Smoothing AI Training Power Swings}
@@ -22,22 +23,25 @@
 \maketitle
 
 \begin{abstract}
-Large AI training jobs move GPU power by tens of percent within a second, and synchronized jobs can
-violate the ramp-rate limits that grid operators place on large loads. Fill-type smoothing (filler GPU
+Large AI training jobs move GPU power by tens of percent within a second, and synchronized jobs add
+these swings together into fast load ramps of the kind that ramp-rate limits on large loads are meant to
+prevent. Fill-type smoothing (filler GPU
 work or storage that adds power while the load falls) can remove these violations, but it has to be
 engaged before the fall arrives, and keeping it engaged costs energy. A forecaster can decide when to
-engage it. We show that what the forecaster is trained to predict matters more than which model is used.
-A gradient-boosted classifier trained on the usual target, ``a large power drop is coming'', ranks the
-events a ramp limiter must catch poorly (average precision, AP, <<nlr_ap_old>> on held-out H100 traces).
-Retrained on the controller's own event, ``a ramp-limit violation will occur while a limiter triggered now
-would be engaged'', the same model class reaches AP <<nlr_ap_ml>>, against <<nlr_ap_rh>> for a no-learning
-rhythm-replay baseline of the same target. In a limiter simulation with a threshold chosen on validation
+engage it. We show that what the forecaster is trained to predict matters.
+In a matched-pipeline ablation, a gradient-boosted classifier trained on a generic
+target, ``a large power drop is coming'', ranks the events a ramp limiter must catch poorly (average
+precision, AP, <<abl_matched_drop_ap>> on held-out NLR H100 data). Trained on the controller's own event,
+``a ramp-limit violation will occur while a limiter triggered now would be engaged'', the same pipeline
+reaches AP <<abl_matched_aligned_ap>> (difference 95\% CI <<abl_matched_diff_lo>> to
+<<abl_matched_diff_hi>>), against <<nlr_ap_rh>> for a no-learning rhythm-replay baseline of the same
+target. In a limiter simulation with a threshold chosen on validation
 data for a 90\% removal target, the learned trigger removes <<t90_sb0_ml_aligned_cut>>\% of test violations
 with the actuator engaged <<t90_sb0_ml_aligned_armed>>\% of the time, while rhythm replay meets the target
 only by staying engaged <<t90_sb0_rhythm_aligned_armed>>\% of the time, i.e.\ effectively always on. Across
-three public datasets (H100, B200 and V100 nodes; benchmarks and real user jobs), the learned trigger
+three public datasets (H100, B200 and V100 nodes; scripted benchmarks and labelled cluster jobs), the learned trigger
 ranks violations significantly better than rhythm replay on two datasets when the site is represented in
-training; the third is inconclusive. On a site never seen in training, the learned trigger is never
+training (95\% cluster-bootstrap intervals exclude zero); the third is inconclusive. On a site never seen in training, the learned trigger is never
 better than rhythm replay in AP, and an hour of local data does not reliably recover the advantage. We
 report this as an open problem.
 \end{abstract}
@@ -45,8 +49,8 @@ report this as an open problem.
 \section{Introduction}
 
 Training a large neural network alternates compute-heavy and communication-heavy phases, so GPU power
-moves in fast, large steps. All nodes of a data-parallel job step together, so a synchronized job looks to
-the grid like one large, fast swing. Industry reports describe swings of tens to hundreds of megawatts and
+moves in fast, large steps. Nodes in a synchronized data-parallel job step together, so their power
+changes add rather than cancel and the job can look to the grid like one large, fast swing. Industry reports describe swings of tens to hundreds of megawatts and
 evaluate software power burning, GPU power floors and rack-level storage as mitigations~\cite{msft_stab}.
 Hardware filters and storage that react to the measured load are being developed~\cite{easyrider,
 activefilter}; predictive storage control has been studied with perfect preview~\cite{hess} and with
@@ -63,12 +67,12 @@ Our contributions are:
 \begin{itemize}
 \item \textbf{A control-aligned prediction target.} Instead of a generic ``large drop'', the label is the
 event the controller acts on: a ramp-limit violation whose whole 1~s ramp window lies inside the window
-during which a limiter triggered now would be armed. Retargeting alone raises AP from <<nlr_ap_old>> to
-<<nlr_ap_ml>> on held-out H100 traces (Section~\ref{sec:res-target}).
+during which a limiter triggered now would be armed. In a matched-pipeline ablation, retargeting raises AP from <<abl_matched_drop_ap>> to <<abl_matched_aligned_ap>> on held-out NLR
+data (Section~\ref{sec:res-target}).
 \item \textbf{A readiness analysis} that puts learned triggers, rhythm replay, an always-on limiter and a
 perfect-foresight oracle on one curve of violations removed versus time engaged, with operating points
 chosen on validation data and scored on test data (Section~\ref{sec:res-ready}).
-\item \textbf{A three-dataset study} (H100, B200, V100; scripted benchmarks and real user jobs) with
+\item \textbf{A three-dataset study} (H100, B200, V100; scripted benchmarks and labelled cluster jobs) with
 cluster-bootstrap confidence intervals, a sensor-harmonization step, and a \textbf{negative result}: a
 learned trigger did not transfer to an unseen site (Sections~\ref{sec:res-cross}--\ref{sec:res-unseen}).
 \end{itemize}
@@ -79,7 +83,7 @@ We are not aware of prior work that studies how the forecasting target affects s
 
 \begin{table}[t]
 \centering
-\caption{Datasets. Node-hours are those used for modeling. Test units are independent jobs or sessions.}
+\caption{Datasets. Node-hours are those used for modeling. Units are independent training jobs or sessions; each NLR inference benchmark is one session.}
 \label{tab:data}
 \footnotesize
 \begin{tabular}{@{}l l p{4.2cm} l r r@{}}
@@ -88,7 +92,7 @@ Dataset & GPUs/node & Workloads & Sensor & Node-h & Units (test) \\
 \midrule
 NLR~\cite{nlr} & 4$\times$H100 & MLPerf Llama2-70B LoRA, SD; vLLM inference & NVML 5--10 Hz & <<nlr_node_h>> & <<nlr_units>> (<<nlr_test_units>>) \\
 Elsayed et al.~\cite{elsayed} & 8$\times$H100 / B200 & diffusion, Llama 1B--8B fine-tuning & NVML & <<elsayed_node_h>> & <<elsayed_units>> (<<elsayed_test_units>>) \\
-MIT Supercloud~\cite{supercloud} & 1--2$\times$V100 & 7 model classes, real user jobs & nvidia-smi 10 Hz & <<supercloud_node_h>> & <<supercloud_units>> (<<supercloud_test_units>>) \\
+MIT Supercloud~\cite{supercloud} & 1--2$\times$V100 & 7 model classes, labelled cluster jobs & nvidia-smi 10 Hz & <<supercloud_node_h>> & <<supercloud_units>> (<<supercloud_test_units>>) \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -107,30 +111,33 @@ clusters in total.
 training and Llama 1B--8B fine-tuning sweeps in 15-minute sessions (<<elsayed_units>> unique sessions).
 
 \textbf{MIT Supercloud}~\cite{supercloud}: we use a stratified subset of 560 labelled jobs, 80 per model
-class (VGG, ResNet, Inception, U-Net, BERT, DistilBERT, GNN), on nodes with one or two V100 GPUs. These are
-real user jobs, not benchmarks.
+class (VGG, ResNet, Inception, U-Net, BERT, DistilBERT, GNN), on two-V100 nodes (one or two GPU streams
+per trace; up to four retained nodes per job, 973 trace segments). These are scheduler-observed jobs on a shared
+cluster; the release uses open-source model implementations and public datasets, so they are not
+necessarily production workloads, but they are not scripted for power measurement.
 
 \textbf{Common preprocessing.} All traces are averaged onto a 0.2~s grid (row $t$ averages
 $[t, t+0.2\,\mathrm{s})$) and expressed as ``NLR-equivalent watts'': node GPU power times 2.8~kW divided by
-the node's rated GPU power. A ramp limit of 10\% of rated power per second therefore means the same thing
-on every node. Jobs are assigned whole to train, validation and test (about 60/20/20, seed 42). For the
+the node's rated GPU power (2.8~kW for 4$\times$H100, 5.6~kW for 8$\times$H100, 8.0~kW for 8$\times$B200 assuming 1~kW per
+B200, and an assumed 250~W per logged V100). We study an illustrative down-ramp threshold of 10\% of rated power per
+second, which therefore means the same thing on every node; it is not a specific utility's requirement. Jobs are assigned whole to train, validation and test (about 60/20/20, seed 42). For the
 control-aligned models the validation units are split again into two halves: one for early stopping and
-one for choosing operating points. For NLR inference these halves are alternate hour blocks of the same
-session and are not independent.
+one for choosing operating points. For NLR inference, one-hour validation blocks are assigned to these halves after a seeded shuffle;
+they come from the same sessions and are not independent.
 
 \textbf{Sensor harmonization.} NVML documents that its default power reading is averaged over a 1~s
 interval on Ampere (except GA100) and newer GPUs, which includes the H100 and B200, while on GA100 and
 older architectures, including the V100, it returns instantaneous power~\cite{nvml}. The NLR
 documentation does not state which reading was logged. Raw V100 traces flicker: without harmonization,
-89\% of Supercloud seconds would be labelled ``violation imminent''. We apply a 1~s trailing mean to
+91\% of Supercloud test seconds would be labelled ``violation imminent''. We apply a 1~s trailing mean to
 Supercloud so that all three datasets are compared at a similar effective bandwidth. This is an
 assumption, discussed in Section~\ref{sec:limits}.
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=0.6\textwidth]{fig_example.pdf}
-\caption{Thirty seconds of one NLR Llama2-70B LoRA test node. Red dots mark ramp-limit violations
-(1~s fall larger than 10\% of rated node power). Many are steps of a regular square wave rather than
+\caption{Sixty seconds of one NLR Llama2-70B LoRA test node. Red dots mark exceedances of the illustrative
+study threshold (1~s fall larger than 10\% of rated node power). Many are steps of a regular square wave rather than
 ``big drops''.}
 \label{fig:example}
 \end{figure}
@@ -146,25 +153,28 @@ its ramp window is $[v-F, v]$ (Fig.~\ref{fig:example}).
 
 The \emph{limiter} adds power only. When armed, or while still filling, its output is
 \begin{equation}
-o_t = \max\bigl(p_t,\; o_{t-1} - 0.1\,P_{\mathrm{rated}}/F\bigr),
+o_t = \max\bigl(p_t,\; o_{t-1} - 0.9\cdot 0.1\,P_{\mathrm{rated}}/F\bigr),
 \end{equation}
-so it tapers at the allowed rate until it meets the load; otherwise $o_t = p_t$.
+so it tapers at 90\% of the allowed rate (a safety margin) until it meets the load; otherwise $o_t = p_t$.
 
 A trigger issued at row $t$ acts after a one-row decision delay (row $t$ is complete only at $t+1$) and
 an actuator latency $L$ (1~s unless stated), so engagement starts at $e = t + 1 + L F$. Each trigger arms
 the limiter for the half-open window $[e, e+H)$ with hold $H$ = 6~s = 30 rows. We count as
 \emph{engaged} every row where the limiter is armed or still filling. Performance is the share of raw
-violations removed against the share of time engaged. Energy overhead is the fill energy plus a standby
-draw of 0 to 5\% of rated power while engaged, as a share of job energy.
+violations removed against the share of time engaged. The energy metric is the fill energy plus a standby
+draw (we report 0 and 2\% of rated power) while engaged, as a share of job energy. For filler compute this is
+extra consumption; for storage it is charge absorbed before any later discharge or loss, which we do not
+model.
 
-References: \emph{always-on} (always armed), \emph{always-burn} (an 80\% power floor, which removes only
+References: \emph{always-on} (always armed), \emph{always-burn} (a power floor at 80\% of the trailing 60~s peak, which removes only
 <<burn_cut>>\% of violations for <<burn_ovh>>\% extra energy), and an \emph{oracle} that arms just in
 time for every violation, iterating until violations induced by the limiter itself are also covered.
 
 \subsection{Targets}
 
-The \textbf{big-drop} target labels row $t$ positive if a fall of more than 30\% of the trailing 10~s peak
-within 1~s starts in the next 5~s. The \textbf{control-aligned} target labels row $t$ positive if a raw
+The \textbf{big-drop} target labels row $t$ positive if a big-drop onset lies in the next 5~s. An onset
+is a row where power falls by more than 30\% of the trailing 10~s peak within the following 1~s, with that
+peak at least 1~kW; candidates within 5~s after an onset are merged into it. The \textbf{control-aligned} target labels row $t$ positive if a raw
 violation starts at some $v$ with
 \begin{equation}
 v \in [e + F,\; e + H - 1], \qquad e = t + 1 + LF,
@@ -176,27 +186,35 @@ substantially. We train one model per actuator latency $L \in \{0, 0.2, 0.5, 1, 
 
 \subsection{Predictors}
 
-\textbf{Rhythm replay} estimates the period $P$ from a trailing 120~s autocorrelation (recomputed every
-second), predicts $\hat p_{t+k} = p_{t+k-P\lceil k/P\rceil}$, and scores row $t$ by the largest predicted
+\textbf{Rhythm replay} estimates the period $P$ from a trailing 120~s autocorrelation, recomputed every
+second: it searches lags of 2 to 40~s, requires a peak correlation of at least 0.3, and takes the first
+local peak within 90\% of the strongest (rows with no accepted period score zero). It predicts $\hat p_{t+k} = p_{t+k-P\lceil k/P\rceil}$, and scores row $t$ by the largest predicted
 1~s down-ramp whose window lies inside the same target window. It needs no training.
 
 The \textbf{learned} predictor is LightGBM~\cite{lightgbm} on 56 trailing features: current power, lags
 and differences over 0.2 to 20~s, rolling mean, standard deviation, minimum and maximum over 1 to 60~s,
 time since the last up-step, down-step and drop, autocorrelation and FFT rhythm estimates (period,
 strength, phase) and rhythm-replay forecasts at 1, 5 and 10~s. It uses learning rate 0.05, 63 leaves,
-at least 200 rows per leaf, square-root class weighting and early stopping on the early-stopping half of
-validation. A \textbf{shape-only} variant, used for transfer, divides every level feature by the
+at least 200 rows per leaf, 0.8 feature and row subsampling, $\ell_2$ penalty 1, square-root class
+weighting, seed 42, and at most 3000 rounds with 100-round early stopping (binary log-loss) on the
+early-stopping half of validation. For pooled and leave-one-dataset-out training each dataset receives
+equal total sample weight. The earlier big-drop classifier used in the readiness comparisons uses the same
+features, 100 rows per leaf, at most 2000 rounds and AP-based early stopping on all validation data; the
+matched ablation of Section~\ref{sec:res-target} removes these differences. A \textbf{shape-only} variant, used for transfer, divides every level feature by one watt plus the
 trailing 60~s maximum.
 
 \subsection{Evaluation}
 
-Ranking quality is AP on test rows. Uncertainty is a paired bootstrap over independent clusters
+NLR models (Sections~\ref{sec:res-target} and \ref{sec:res-ready}) are trained on one row per second
+and scored on every 0.2~s row; cross-dataset models (Sections~\ref{sec:res-cross} and
+\ref{sec:res-unseen}) are trained and scored on one row per second. Ranking quality is AP on
+test rows. Uncertainty is a paired bootstrap over independent clusters
 (training jobs; each inference session is one cluster; 1000 resamples). The intervals resample test
 clusters for a single fitted model and split; they do not retrain, so they omit training and split
 variability. Operating points (thresholds) are chosen on the threshold half of validation and then
-scored on test. For the readiness curves we sweep about 200 thresholds taken from validation-score
-quantiles. Cross-dataset comparisons score one decision per second; the NLR readiness analysis scores
-every 0.2~s row.
+scored on test. We call a difference significant when its 95\% interval excludes zero; intervals are
+not adjusted for multiple comparisons. For the readiness curves we sweep about 200 thresholds taken from validation-score
+quantiles.
 
 \section{Results}
 
@@ -204,8 +222,20 @@ every 0.2~s row.
 \label{sec:res-target}
 
 On NLR test traces rhythm replay ranks the control-aligned event with AP <<nlr_ap_rh>>. LightGBM trained
-on the big-drop target reaches only <<nlr_ap_old>> on the same event. The same model class trained on the
-control-aligned target reaches <<nlr_ap_ml>>, and the gain holds for every workload (Table~\ref{tab:wl}).
+on the control-aligned target reaches <<nlr_ap_ml>>, and the gain over rhythm replay holds for every
+workload (Table~\ref{tab:wl}).
+
+\textbf{Matched label ablation.} To isolate the effect of the label, we train the big-drop label through
+the same pipeline as the control-aligned model: same training rows, features, fixed LightGBM settings,
+early-stopping half, stopping metric and square-root class-weighting rule. Because that rule depends on
+label prevalence, the numerical class weight changes with the label (1.75 for the aligned target versus 2.57 for the big-drop target). Scored on the control-aligned event, the
+big-drop model reaches AP <<abl_matched_drop_ap>> against <<abl_matched_aligned_ap>> for the aligned model,
+a paired cluster-bootstrap difference of <<abl_matched_diff>> (95\% CI <<abl_matched_diff_lo>> to
+<<abl_matched_diff_hi>>, 12 clusters). The big-drop model is not weak at its own task: on the big-drop
+event it reaches AP <<abl_matched_drop_ap_on_drop_label>>, where the aligned model reaches only
+<<abl_matched_aligned_ap_on_drop_label>>. The two labels describe different events, and each model is good
+at the one it was trained on. (The separately configured big-drop classifier from our earlier pipeline
+gives a similar <<nlr_ap_old>> on the aligned event.)
 The inference workloads are hardest; their falls are dominated by the gaps between benchmark runs.
 Results barely depend on actuator latency (Table~\ref{tab:lat}): the regular structure that makes
 violations predictable 1~s ahead also makes them predictable 3~s ahead.
@@ -214,7 +244,8 @@ violations predictable 1~s ahead also makes them predictable 3~s ahead.
 \centering
 \begin{minipage}[t]{0.55\textwidth}
 \centering
-\caption{NLR test AP on the control-aligned target, 1~s latency.}
+\caption{NLR test AP on the control-aligned target, 1~s latency. Per-workload rows are point estimates;
+each inference workload is a single session, so no interval is computed.}
 \label{tab:wl}
 \small
 \begin{tabular}{@{}lcc@{}}
@@ -261,22 +292,23 @@ removal by staying engaged long enough; what differs is how much engaged time it
 removal target, the learned control-aligned trigger removes <<t90_sb0_ml_aligned_cut>>\% of test violations
 at <<t90_sb0_ml_aligned_armed>>\% engaged time, slightly short of target. Rhythm replay reaches
 <<t90_sb0_rhythm_aligned_cut>>\% only by staying engaged <<t90_sb0_rhythm_aligned_armed>>\% of the time,
-which is the always-on solution. With a 2\% standby draw the energy overheads are
+which is the always-on solution. With a 2\% standby draw the reported energy metrics are
 <<t90_sb2_ml_aligned_ovh>>\% and <<t90_sb2_rhythm_aligned_ovh>>\% (always-on: <<t90_sb2_always_on_ovh>>\%).
 At an 80\% target both triggers undershoot on test (<<t80_sb0_ml_aligned_cut>>\% and
 <<t80_sb0_rhythm_aligned_cut>>\%): thresholds chosen on a few validation jobs transfer imperfectly. The
-oracle removes all violations at <<oracle_armed>>\% engaged time, which bounds what better prediction could
+perfect-foresight oracle removes all violations at <<oracle_armed>>\% engaged time. It is an iterative
+just-in-time heuristic rather than a proven minimum, but it indicates how much better prediction could
 still gain.
 
 \begin{table}[t]
 \centering
 \caption{Validation-chosen operating points scored on NLR test traces (1~s latency). Removal and engaged
-time in \% ; overhead in \% of job energy with a 2\% standby draw.}
+time in \%; reported energy metric in \% of baseline job energy with a 2\% standby draw.}
 \label{tab:ops}
 \small
 \begin{tabular}{@{}llccc@{}}
 \toprule
-Target & Trigger & Removed & Engaged & Overhead \\
+Target & Trigger & Removed & Engaged & Energy metric \\
 \midrule
 \multirow{3}{*}{80\%} & Learned, aligned & <<t80_sb2_ml_aligned_cut>> & <<t80_sb2_ml_aligned_armed>> & <<t80_sb2_ml_aligned_ovh>> \\
  & Rhythm, aligned & <<t80_sb2_rhythm_aligned_cut>> & <<t80_sb2_rhythm_aligned_armed>> & <<t80_sb2_rhythm_aligned_ovh>> \\
@@ -303,7 +335,7 @@ control-aligned trigger needs <<an90_ml_aligned_armed>>\% engaged time and rhyth
 <<an90_rhythm_aligned_armed>>\%: a paired cluster-bootstrap difference of <<an90_diff_vs_rhythm_aligned>>
 points (95\% CI <<an90_diff_vs_rhythm_aligned_lo>> to <<an90_diff_vs_rhythm_aligned_hi>>). The interval is
 asymmetric because the statistic is a minimum over thresholds: in most resamples rhythm replay needs more
-than 95\% engagement, but some cluster mixtures cross 90\% removal near 50--60\%. At 95\% removal the
+than 95\% engagement, but some cluster mixtures cross 90\% removal at 50--80\%. At 95\% removal the
 difference is <<an95_diff_vs_rhythm_aligned>> points (CI <<an95_diff_vs_rhythm_aligned_lo>> to
 <<an95_diff_vs_rhythm_aligned_hi>>). Against the learned big-drop trigger the difference is
 <<an90_diff_vs_ml_alarm>> points at 90\% (CI <<an90_diff_vs_ml_alarm_lo>> to <<an90_diff_vs_ml_alarm_hi>>)
@@ -331,8 +363,8 @@ Removal & Learned, aligned & Rhythm, aligned & Learned, big-drop \\
 \centering
 \includegraphics[width=0.6\textwidth]{fig_readiness.pdf}
 \caption{Violations removed versus engaged time on NLR test traces (1~s latency, about 200 thresholds from
-validation-score quantiles). Always-on removes everything but is always engaged; the oracle bounds what
-any trigger could achieve.}
+validation-score quantiles). Always-on removes everything but is always engaged; the star is the iterative
+perfect-foresight oracle.}
 \label{fig:ready}
 \end{figure}
 
@@ -342,7 +374,7 @@ any trigger could achieve.}
 Table~\ref{tab:cross} and Fig.~\ref{fig:forest} compare AP in three configurations: trained on the test
 site's own training jobs (in-domain), trained on all three datasets (pooled), and trained on the other two
 only (unseen site). In-domain or pooled, the learned trigger ranks violations significantly better than
-rhythm replay on NLR and on real Supercloud jobs. On Supercloud, exploratory per-class intervals (not
+rhythm replay on NLR and on Supercloud. On Supercloud, exploratory per-class intervals (not
 corrected for multiplicity) are positive for <<sc_classes_sig>> of <<sc_classes>> model classes. On
 Elsayed the point estimate favours learning but the interval includes zero with only six test sessions,
 and rhythm replay is better on its two diffusion test sessions; their very regular cadence may suit
@@ -386,7 +418,9 @@ AP is a ranking measure, not a smoothing result. Table~\ref{tab:xready} reports 
 operating points for a 90\% removal target on each dataset (one decision per second, no confidence
 intervals). The learned trigger lands below target on Elsayed and slightly below on the others; rhythm
 replay meets the target on NLR and Supercloud only by staying engaged almost all the time, and misses it
-on Elsayed. Operationally, the main advantage of learning is engaged time, not removal.
+on Elsayed. On NLR and Supercloud learning therefore trades about 12 points of removal for roughly half
+the engaged time; on Elsayed it removes more at similar engaged time. Without intervals these comparisons
+are descriptive.
 
 \begin{table}[t]
 \centering
@@ -413,17 +447,19 @@ AP on any dataset, and with the ordinary features it is significantly worse on N
 (Table~\ref{tab:cross}). Absolute power levels differ across GPU generations even after normalization, so
 we tried two remedies (Table~\ref{tab:transfer}). Shape-only features close the NLR gap to an
 inconclusive difference but remain significantly worse on Supercloud. Continuing to boost the unseen-site
-model on 5, 15 or 60 minutes of the new site's training data (mean and range over five independent draws)
-does not reliably recover the in-domain advantage. Rhythm replay needs no site data at all; in our
-experiments a learned trigger needed the site in its training set.
+model on 5, 15 or 60 minutes of the new site's training data (mean and range over five random draws)
+does not reliably recover the in-domain advantage (a draw is left unadapted if its local fitting subset
+or its early-stopping tail contains only one class). Rhythm replay needs no site data to score, only to set a
+threshold; in our experiments a learned trigger needed the site in its training set to rank better.
 
-Validation-chosen operating points tell a slightly different story: with ordinary features, the
-unseen-site learned trigger on NLR removes <<rd_lodo_nlr_learned_90_cut>>\% of violations at
+Validation-chosen operating points tell a slightly different story, but they are not fully zero-shot:
+the thresholds of both triggers are chosen on the held-out site's own validation data, so ``unseen''
+refers to model fitting only. With ordinary features, the unseen-site learned trigger on NLR removes <<rd_lodo_nlr_learned_90_cut>>\% of violations at
 <<rd_lodo_nlr_learned_90_armed>>\% engaged time, against <<rd_lodo_nlr_rhythm_90_cut>>\% at
 <<rd_lodo_nlr_rhythm_90_armed>>\% for rhythm replay. Ranking quality and engaged time can therefore
 disagree; we have no interval for this comparison and do not claim transfer from it.
 
-\begin{table}[t]
+\begin{table}[tb]
 \centering
 \caption{Transfer to an unseen site with shape-only features. Adapted rows: mean (range) AP over five
 draws of local data. Rhythm replay AP for reference.}
@@ -450,8 +486,10 @@ Unseen site, shape-only & <<tr_lodo_shape_nlr_ml>> & <<tr_lodo_shape_supercloud_
 \textbf{Why the target matters.} The big-drop label teaches the model about one kind of event (large
 falls) at one horizon (the next 5~s). The limiter needs something else: a fall steep enough to break the
 ramp limit, inside the window its own latency and hold time define. Many violations, such as the steps
-of the LoRA square wave, never qualify as big drops, so a big-drop model never learns to rank them. The
-model class, features and data were the same in both cases; only the label changed.
+of the LoRA square wave, never qualify as big drops, so a big-drop model never learns to rank them. In the
+matched ablation all fixed pipeline choices and the class-weighting rule are held constant; the label and
+its prevalence-derived class weight change together, so the gap is attributable to the choice of training
+target (Section~\ref{sec:res-target}).
 
 \textbf{Why rhythm replay is always on at high removal.} Replay predicts each violation from the previous
 cycle. Violations that do not repeat (phase changes, gaps between inference runs) score near zero, so the
@@ -463,14 +501,17 @@ time.
 measured lead times are optimistic; harmonizing Supercloud with a 1~s mean is an assumption.
 \emph{Uncertainty.} Intervals are conditional on one fitted model and one split and do not include
 training or split variability; NLR has 12 test clusters and Elsayed six. Up to four near-synchronous nodes
-per NLR job are weighted equally, so larger jobs weigh more in point estimates. For NLR inference, the two
+per NLR job, and up to four retained nodes per Supercloud job, are weighted equally, and metrics pool rows, so longer and larger
+jobs weigh more in point estimates; the bootstrap resamples whole jobs but does not change this
+weighting. For NLR inference, the two
 validation halves are not independent.
-\emph{Simulation.} The actuator is an idealized limiter with fixed latency, hold time and standby draw.
-Storage capacity, state of charge, recharge, efficiency, wear and measured actuator dynamics are not
-modelled, and the standby cost is an assumed fraction of rated power.
+\emph{Simulation.} The actuator is an idealized one-sided limiter with fixed latency, hold time and
+standby draw. Actuator power limits, storage capacity, state of charge, later discharge, efficiency,
+wear and measured actuator dynamics are not modelled, and the standby cost is an assumed fraction of rated
+power. The ramp threshold is illustrative and applied per node.
 \emph{Workloads.} NLR and Elsayed are scripted benchmarks; NLR inference falls are dominated by gaps
-between benchmark runs, and each NLR inference workload is a single session. Supercloud adds real jobs,
-but on 2018-era V100 nodes.
+between benchmark runs, and each NLR inference workload is a single session. Supercloud adds scheduler-observed cluster
+jobs, but on older V100 nodes.
 \emph{Scale.} All results are per node. Synchronized multi-node jobs scale the same swing, while
 desynchronized jobs partly cancel; we do not model facility-level aggregation.
 
@@ -483,8 +524,9 @@ new site, or at least decide quickly whether to fall back to rhythm replay.
 For fill-type smoothing of AI power swings, a forecaster should be trained on the controller's event, a
 ramp-limit violation inside the actuator's engagement window, rather than on a generic large drop. With
 that target, a small gradient-boosted model needs substantially less engaged time than rhythm replay for
-the same violation removal on H100 benchmark traces, and ranks violations better (higher AP) on real V100
-jobs, provided the site is represented in training. Closing the gap to the oracle and making learned
+the same violation removal on H100 benchmark traces (retrospectively, with thresholds read off the test
+curve; Table~\ref{tab:arm}), and ranks violations better (higher AP) on V100
+cluster jobs, provided the site is represented in training. Closing the gap to the oracle and making learned
 triggers transfer to new sites are the natural next steps.
 
 \section*{Data, code and licences}
@@ -492,7 +534,7 @@ The NLR data are released under the National Laboratory of the Rockies dataset l
 use with attribution. The Elsayed et al.\ dataset is listed as CC~BY~4.0 on figshare, while the README
 inside its archive states CC~BY-NC-ND; we treat it conservatively as non-commercial. The MIT Supercloud
 data are CC~BY-NC-ND~4.0. All three are used for research only and none is redistributed; readers can
-obtain them from the original sources. Every number in this paper is generated from result tables written by the analysis
+obtain them from the original sources. The reported model and controller metrics are generated from result tables written by the analysis
 pipeline. The code is available from the author on request.
 
 \section*{Use of AI tools}
