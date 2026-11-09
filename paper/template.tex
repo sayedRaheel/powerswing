@@ -25,10 +25,11 @@ Large AI training jobs swing GPU power by tens of percent within a second, and s
 violate the ramp limits that utilities place on large loads. Fill-type smoothing (filler GPU work,
 storage) removes these violations but must be engaged before the fall, and keeping it engaged costs
 energy. Forecasting can decide when to engage it. We find that the choice of training target matters
-substantially. A gradient-boosted predictor trained on the usual target, ``a large power drop is
-coming'', ranks the violations a ramp limiter must catch poorly (average precision <<nlr_ap_old>>).
-Retargeted to the controller's own event, ``a ramp-limit violation will occur while a limiter armed now would be
-armed'', the same model reaches average precision <<nlr_ap_ml>> on held-out H100 training and inference
+substantially. In a matched-pipeline ablation, a gradient-boosted classifier trained on the usual target,
+``a large power drop is coming'', ranks the violations a ramp limiter must catch poorly (average precision
+<<abl_matched_drop_ap>>). Trained on the controller's own event, ``a ramp-limit violation will occur while a
+limiter armed now would be armed'', the same pipeline reaches <<abl_matched_aligned_ap>> (difference 95\% CI
+<<abl_matched_diff_lo>> to <<abl_matched_diff_hi>>) on held-out H100 training and inference
 traces, against <<nlr_ap_rh>> for no-learning rhythm replay of the same target. With a threshold chosen on
 validation for a 90\% removal target, the learned trigger removes <<t90_sb0_ml_aligned_cut>>\% of test
 violations with the actuator engaged <<t90_sb0_ml_aligned_armed>>\% of the time, while rhythm replay meets
@@ -129,10 +130,16 @@ decision per second; the NLR readiness analysis scores every 0.2~s row.
 
 \section{Results}
 \subsection{Training target}
-On NLR test traces, rhythm replay ranks the control-aligned event with AP <<nlr_ap_rh>>. LightGBM
-trained on the big-drop target reaches <<nlr_ap_old>> on the same event; the same model class trained
-on the control-aligned target reaches <<nlr_ap_ml>>, and the gain holds for each workload
-(Table~\ref{tab:wl}). Results are stable across actuator latencies (AP <<lat0_ml>> at 0~s, <<lat3_ml>>
+On NLR test traces, rhythm replay ranks the control-aligned event with AP <<nlr_ap_rh>>; LightGBM trained
+on the control-aligned target reaches <<nlr_ap_ml>>, and the gain holds for each workload (Table~\ref{tab:wl}).
+\emph{Matched label ablation.} Training the big-drop label through the same pipeline (same rows, features,
+LightGBM settings, early-stopping data and metric, and square-root class-weighting rule, which gives weight
+1.75 for the aligned and 2.57 for the big-drop target) yields AP <<abl_matched_drop_ap>> on the aligned event
+against <<abl_matched_aligned_ap>>, a paired cluster-bootstrap difference of <<abl_matched_diff>> (95\% CI
+<<abl_matched_diff_lo>> to <<abl_matched_diff_hi>>, 12 clusters). The big-drop model is good at its own task
+(AP <<abl_matched_drop_ap_on_drop_label>> on the big-drop event, where the aligned model reaches
+<<abl_matched_aligned_ap_on_drop_label>>): the two labels describe different events.
+Results are stable across actuator latencies (AP <<lat0_ml>> at 0~s, <<lat3_ml>>
 at 3~s; rhythm replay <<lat0_rh>> and <<lat3_rh>>).
 
 \begin{table}[t]
@@ -251,6 +258,11 @@ that target a small gradient-boosted model needs substantially less engaged time
 the same violation removal on H100 benchmark traces, and ranks violations better (higher AP) on real
 V100 jobs, provided the site is represented in training. Closing the gap to the oracle and making learned triggers transfer to
 new sites are the natural next steps.
+
+\section*{Code availability and use of AI tools}
+Code is available from the author on request; the datasets are public from their original sources.
+Analysis code and text were drafted with the help of AI coding and writing assistants and independently
+reviewed by a separate AI model. The author checked the results and is responsible for the content.
 
 \begin{thebibliography}{9}
 \bibitem{msft_stab} E.~Choukse, B.~Warrier, S.~Heath, et al., ``Power stabilization for AI training datacenters,'' arXiv:2508.14318, 2025.

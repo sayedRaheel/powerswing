@@ -25,10 +25,11 @@ Large AI training jobs swing GPU power by tens of percent within a second, and s
 violate the ramp limits that utilities place on large loads. Fill-type smoothing (filler GPU work,
 storage) removes these violations but must be engaged before the fall, and keeping it engaged costs
 energy. Forecasting can decide when to engage it. We find that the choice of training target matters
-substantially. A gradient-boosted predictor trained on the usual target, ``a large power drop is
-coming'', ranks the violations a ramp limiter must catch poorly (average precision 0.58).
-Retargeted to the controller's own event, ``a ramp-limit violation will occur while a limiter armed now would be
-armed'', the same model reaches average precision 0.96 on held-out H100 training and inference
+substantially. In a matched-pipeline ablation, a gradient-boosted classifier trained on the usual target,
+``a large power drop is coming'', ranks the violations a ramp limiter must catch poorly (average precision
+0.58). Trained on the controller's own event, ``a ramp-limit violation will occur while a
+limiter armed now would be armed'', the same pipeline reaches 0.96 (difference 95\% CI
+0.28 to 0.49) on held-out H100 training and inference
 traces, against 0.67 for no-learning rhythm replay of the same target. With a threshold chosen on
 validation for a 90\% removal target, the learned trigger removes 86.8\% of test
 violations with the actuator engaged 45.6\% of the time, while rhythm replay meets
@@ -129,10 +130,16 @@ decision per second; the NLR readiness analysis scores every 0.2~s row.
 
 \section{Results}
 \subsection{Training target}
-On NLR test traces, rhythm replay ranks the control-aligned event with AP 0.67. LightGBM
-trained on the big-drop target reaches 0.58 on the same event; the same model class trained
-on the control-aligned target reaches 0.96, and the gain holds for each workload
-(Table~\ref{tab:wl}). Results are stable across actuator latencies (AP 0.96 at 0~s, 0.95
+On NLR test traces, rhythm replay ranks the control-aligned event with AP 0.67; LightGBM trained
+on the control-aligned target reaches 0.96, and the gain holds for each workload (Table~\ref{tab:wl}).
+\emph{Matched label ablation.} Training the big-drop label through the same pipeline (same rows, features,
+LightGBM settings, early-stopping data and metric, and square-root class-weighting rule, which gives weight
+1.75 for the aligned and 2.57 for the big-drop target) yields AP 0.58 on the aligned event
+against 0.96, a paired cluster-bootstrap difference of 0.37 (95\% CI
+0.28 to 0.49, 12 clusters). The big-drop model is good at its own task
+(AP 0.93 on the big-drop event, where the aligned model reaches
+0.48): the two labels describe different events.
+Results are stable across actuator latencies (AP 0.96 at 0~s, 0.95
 at 3~s; rhythm replay 0.68 and 0.67).
 
 \begin{table}[t]
@@ -251,6 +258,11 @@ that target a small gradient-boosted model needs substantially less engaged time
 the same violation removal on H100 benchmark traces, and ranks violations better (higher AP) on real
 V100 jobs, provided the site is represented in training. Closing the gap to the oracle and making learned triggers transfer to
 new sites are the natural next steps.
+
+\section*{Code availability and use of AI tools}
+Code is available from the author on request; the datasets are public from their original sources.
+Analysis code and text were drafted with the help of AI coding and writing assistants and independently
+reviewed by a separate AI model. The author checked the results and is responsible for the content.
 
 \begin{thebibliography}{9}
 \bibitem{msft_stab} E.~Choukse, B.~Warrier, S.~Heath, et al., ``Power stabilization for AI training datacenters,'' arXiv:2508.14318, 2025.
