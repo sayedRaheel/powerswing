@@ -21,28 +21,21 @@
 \maketitle
 
 \begin{abstract}
-Large AI training jobs can swing GPU power by tens of percent within a second, and synchronized jobs can
-create fast load ramps of concern at large grid-connected facilities. In an idealized simulation,
-fill-type smoothing, using filler GPU work or storage, can reduce violations of an illustrative ramp
-threshold, but it must be engaged before the fall and keeping it engaged has a cost.
-Forecasting can decide when to engage it. We find that the choice of training target matters
-substantially. In a matched-pipeline ablation, a gradient-boosted classifier trained on the usual target,
-``a large power drop is coming'', ranks the violations a ramp limiter must catch poorly (average precision
-<<abl_matched_drop_ap>>). Trained on the controller's own event, ``a ramp-limit violation will occur while a
-limiter armed now would be armed'', the same pipeline reaches <<abl_matched_aligned_ap>> (difference 95\% CI
-<<abl_matched_diff_lo>> to <<abl_matched_diff_hi>>) on held-out H100 training and inference
-traces, against <<nlr_ap_rh>> for no-learning rhythm replay of the same target. With a threshold chosen on
-validation for a 90\% removal target, the learned trigger removes <<t90_sb0_ml_aligned_cut>>\% of test
-violations with the actuator engaged <<t90_sb0_ml_aligned_armed>>\% of the time, while rhythm replay meets
-the target only by staying engaged <<t90_sb0_rhythm_aligned_armed>>\% of the time, i.e.\ effectively always on.
-Across three public datasets covering H100, B200 and V100 nodes and both benchmark and labelled cluster jobs,
-the learned trigger has significantly higher AP than rhythm replay on two datasets when that site is in the
-training data, after harmonizing sensor averaging; the third is inconclusive. Transfer to an unseen
-site is unreliable, which we report as an open problem.
+AI training jobs swing GPU power by tens of percent within a second, creating fast load ramps at
+grid-connected facilities. In an idealized simulation, fill-type smoothing reduces ramp-threshold
+violations but must be engaged before the fall, at a cost. The forecasting target matters. In a
+matched-pipeline ablation, a gradient-boosted classifier trained on the usual target, a large power drop,
+ranks violations poorly (average precision <<abl_matched_drop_ap>>). Trained on the controller's own event,
+a violation inside the window a limiter armed now would cover, it reaches <<abl_matched_aligned_ap>> on
+held-out H100 traces, against <<nlr_ap_rh>> for rhythm replay. With a validation-chosen threshold, the
+learned trigger removes <<t90_sb0_ml_aligned_cut>>\% of test violations while engaged
+<<t90_sb0_ml_aligned_armed>>\% of the time; rhythm replay must stay engaged <<t90_sb0_rhythm_aligned_armed>>\%.
+Across three public datasets, learning significantly beats rhythm replay on two when the site is in the
+training data. Transfer to unseen sites is unreliable.
 \end{abstract}
 
 \begin{IEEEkeywords}
-data centers, AI workloads, ramp rate, load forecasting, power smoothing, energy storage
+Data centers, energy storage, load forecasting, machine learning, power smoothing
 \end{IEEEkeywords}
 
 \section{Introduction}
