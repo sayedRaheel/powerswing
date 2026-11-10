@@ -1,5 +1,8 @@
 # powerswing: predicting AI data-center power swings
 
+> **IEEE copyright notice:** This work has been submitted to the IEEE for possible publication (IEEE PES General Meeting 2027). Copyright may be transferred without notice, after which this version may no longer be accessible.
+
+
 Proof of concept: can machine learning predict GPU power swings in AI workloads seconds ahead, better than simple
 rules, and how much grid smoothing does that buy?
 
