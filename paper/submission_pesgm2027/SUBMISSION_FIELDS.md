@@ -19,3 +19,7 @@ Portal: https://submissions.mirasmart.com/PESGM2027 · Deadline: 10 Nov 2026 (no
 
 After submitting: save the confirmation email + screenshot (O-1 evidence). If accepted: register, pay, present in San Francisco (25–29 Jul 2027) — required for IEEE Xplore publication.
 Rebuild: `.venv/bin/python -m src.paper && cd paper && rm -f main.pdf && tectonic -X compile main.tex`, then copy main.pdf here.
+
+## Status (2026-11-09)
+- Submitted via MiraSmart; IEEE eCF copyright transfer signed 09-11-2026 by SAYED RAHEEL HUSSAIN (portal author record shows "SAYED HUSSAIN" — fix name in MiraSmart profile).
+- IEEE notice added to public READMEs (electronic preprint rule). On acceptance: add accepted-version notice + citation; on publication: link IEEE Xplore DOI.
